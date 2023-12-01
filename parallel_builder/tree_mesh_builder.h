@@ -19,7 +19,7 @@ public:
     TreeMeshBuilder(unsigned gridEdgeSize);
 
 protected:
-    unsigned octTreeDecompose(const ParametricScalarField &field, Vec3_t<float> &offset, unsigned size);
+    unsigned octTreeDecomposition(const ParametricScalarField &field, Vec3_t<float> &offset, unsigned size);
     unsigned marchCubes(const ParametricScalarField &field);
     float evaluateFieldAt(const Vec3_t<float> &pos, const ParametricScalarField &field);
     void emitTriangle(const Triangle_t &triangle);
