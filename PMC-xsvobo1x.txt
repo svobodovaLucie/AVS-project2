@@ -1,17 +1,51 @@
 Architektury Výpočetních Systémů (AVS 2023)
 Projekt č. 2 (PMC)
-Login: xlogin00
+Login: xsvobo1x
 
 Úloha 1: Paralelizace původního řešení
 ===============================================================================
 
 1) Kterou ze smyček (viz zadání) je vhodnější paralelizovat a co způsobuje 
    neefektivitu paralelizaci té druhé?
+    
+   Vhodnější je paralelizovat smyčku ve funkci marchCubes, kde se generují
+   polygony pro každou pozici v 3D prostoru. 
+   
+   Paralelizace druhé smyčky (výpočet minimální vzdálenosti ve funkci
+   evaluateFieldAt) je neefektivní, protože tato funkce je volána z první
+   smyčky, kvůli čemuž by byla paralelizována menší část kódu. Zbytek kódu
+   by zůstal sekvenční, což by způsobilo zbytečnou režii paralelizace pro
+   pouze malou část paralelního kódu. Navíc by se muselo čekat na jednotlivá
+   vlákna, než dokončí výpočet, což by mohlo rychlost celé implementace 
+   ještě zpomalit. Neefektivitu by mohla způsobovat také lokalita dat, 
+   protože každé vlákno by přistupovalo k jiné hodnotě ze stejného pole, což
+   by mohlo způsobit časté cache miss, snížit efektivitu využití paměti 
+   cache a tím ještě zvýšit režii.
+   
 
 2) Jaké plánování (rozdělení práce mezi vlákna) jste zvolili a proč? 
    Jaký vliv má velikost "chunk" při dynamickém plánování (8, 16, 32, 64)?
+   
+   Zvolila jsem statické plánování (static), protože výpočtová náročnost
+   jednotlivých iterací cyklu je přibližně stejná. Při testování rozdílů 
+   mezi různými způsoby plánování (dynamic, static, guided) jsem 
+   nezaznamenala výrazné rozdíly v efektivitě implementace.
+   
+   Velikost chunku při dynamickém plánování určuje, kolik úloh bude
+   jednotlivým vláknům přiděleno. Malá velikost "chunk" může způsobovat 
+   příliš velkou režii synchronizace, a naopak příliš vysoká hodnota "chunk"
+   způsobuje, že některá vlákna zůstanou méně vytížená než jiná a celá práce
+   mezi ně není rovnoměrně a efektivně rozdělena. V měřeních vycházela 
+   nejlépe velikost "chunk" 36, nicméně lépe i tak vycházelo použití
+   statického plánování.
+
 
 3) Jakým způsobem zajišťujete ukládání trojúhelníků z několika vláken současně?
+
+   Ve funkci LoopMeshBuilder::emitTriangle(), která ukládá trojúhelníky 
+   do sdílené proměnné mTriangles, je vytvořená kritická sekce pomocí
+   direktivy #pragma omp critical. Ta zajišťuje výlučný přístup k proměnné
+   mTriangles.
 
 
 Úloha 2: Paralelní průchod stromem
@@ -19,23 +53,105 @@ Login: xlogin00
 
 1) Stručně popište použití OpenMP tasků ve vašem řešení.
 
+   Ve funkci TreeMeshBuilder::marchCubes() jsou použity direktivy #pragma 
+   omp parallel, která zajišťuje paralelní provádění a vytváření paralelních
+   tasků, a #pragma omp single, která zajišťuje, že běh funkce
+   TreeMeshBuilder::octTreeDecomposition(), která se ve funkci marchCubes()
+   volá, je na nejvyšší úrovni přidělen pouze jednomu vláknu. Ve funkci
+   octTreeDecomposition() se metoda octTreeDecomposition() rekurzivně volá,
+   a pro každé toto rekurzivní volání je pomocí direktivy #pragma omp task 
+   vytvořen vlastní task. Synchronizace tasků je zajištěna pomocí direktivy 
+   #pragma omp taskwait, která zajišťuje, že rodičovské tasky čekají na child 
+   tasky a díky tomu je následně navrácen správný výsledek funkce. Ve funkci 
+   octTreeDecomposition() je pro zajištění správného výpočtu počtu polygonů 
+   použita direktiva #pragma omp atomic update a ukládání trojúhelníků z 
+   několika vláken současně je zajištěno stejně jako v implementaci Loop, 
+   tedy pomocí kritické sekce ve funkci emitTriangle().
+   
+ 
 2) Jaký vliv má na vaše řešení tzv. "cut-off"? Je vhodné vytvářet nový 
    task pro každou krychli na nejnižší úrovni?
+   
+   "Cut-off" zajišťuje zastavení rekurze. Pokud v krychli už není potřeba 
+   nic vykreslovat, je rekurze zastavena dříve. Pokud je ale v krychli
+   potřeba něco vykreslit, rekurze je v mém řešení zastavena až ve chvíli,
+   kdy se velikost mřížky rovná hodnotě 1. Pokud bychom nastavili zastavení
+   při větší velikosti mřížky než 1, výpočet by byl rychlejší, nicméně by
+   nebyly vykresleny všechny potřebné polygony.
+   
+   Na nejnižší úrovni již není velmi efektivní vytvářet nový task pro každou
+   krychli, protože tento task by pouze generoval trojúhelníky, ale nic
+   dalšího nepočítal. Režie paralelizace by tak byla zbytečně větší.
+
 
 3) Jakým způsobem zajišťujete ukládání trojúhelníků z několika vláken současně?
+
+   Ukládání trojúhelníků v několika vláknech současně je zajištěno ve funkci
+   octTreeDecomposition() pomocí sdílené proměnné totalTriangles a ukládáním
+   výsledků jednotlivých vláken do této proměnné pomocí direktivy #pragma 
+   omp atomic update, díky kterému se zajistí synchronizaci vzájemným
+   vyloučením vláken.
+   
+   Ukládání trojúhelníků ve funkci emitTriangle() je pak zajištěno pomocí
+   kritické sekce, která je vytvořena použitím direktivy #pragma omp  	
+   critical. 
+
 
 Úloha 3: Grafy škálování všech řešení
 ===============================================================================
 
 1) Stručně zhodnoťte efektivitu vytvořených řešení (na základě grafů ŠKÁLOVÁNÍ).
 
+   Grid size scaling: z grafu je vidět, že implementace Loop je efektivnější 
+   pro menší velikost mřížky než efektivita implementace Octree. Od velikosti 
+   mřížky cca 2^12 rychlosti obou implementací rostou lineárně a jejich 
+   výpočetní časy jsou srovnatelné.
+   
+   Strong scaling: z grafu je vidět, že s přibývajícím množstvím vláken čas 
+   výpočtu klesá. To platí pro obě implementace, jak pro implementaci Loop, 
+   tak pro implementaci Octree. Implementace Octree je navíc ve všech případech 
+   efektivnější než Loop. U grafu silného škálování pro implementaci Loop je 
+   vidět, že pro objem práce do velikosti 642 od počtu cca 16 jader se již 
+   nevyplatí přidávat nová jádra a s přidáním jader efektivita implementace 
+   klesá. 
+   
+   Weak scaling: z grafu škálování vzhledem k počtu vláken a velikosti vstupu 
+   je vidět, že implementaci Loop je efektivní využít do použití 8 vláken při 
+   malé úloze, s přibývajícím počtem vláken se už efektivita snižuje (a tedy 
+   se zvyšuje výpočetní čas). U implementace Loop je u dostatečně velkého 
+   vstupu závislost přibližně konstantní. Pro stromovou implementaci platí, 
+   že čím více vláken pracuje, tím je zátěž na jedno vlákno větší. 
+   
+
 2) V jakém případě (v závislosti na počtu bodů ve vstupním souboru a velikosti 
    mřížky) bude vaše řešení 1. úlohy neefektivní? (pokud takový případ existuje)
+   
+   Implementace Loop bude neefektivní, pokud budeme mít velký vstup a použijeme 
+   při tom velký počet vláken.
+   
 
 3) Je (nebo není) stromový algoritmus efektivnější z pohledu slabého škálování 
    vzhledem ke vstupu?
+   
+   Stromový algoritmus (Octree) není z pohledu slabého škálování vzhledem ke 
+   vstupu efektivnější než Loop implementace. Při menším vstupu a malém počtu 
+   vláken škáluje o dost hůře než Loop řešení, ale i při větším počtu vláken 
+   a větší úloze zůstává Loop efektivnější.
+   
+   
 
 4) Jaký je rozdíl mezi silným a slabým škálováním?
+   
+   Silné škálování (strong scaling) říká, jak se celkový výpočetní čas práce mění
+   (zvyšuje/snižuje) v závislosti na zvyšování počtu výpočetních zdrojů (v našem 
+   případě vláken). Je založen na Amdahlově zákoně a ideálním grafem je klesající 
+   přímka (s větším počtem výpočetních zdrojů je možné problém vyřešit rychleji).
+   
+   Na rozdíl od toho, slabé škálování (weak scaling) zobrazuje, jak se mění 
+   výpočetní čas v závislosti na přidávání velikosti vstupu na vlákno. Je založeno 
+   na Gustafsonově zákonu a ideálním grafem je konstantní funkce.
+   
+
 
 Úloha 4: Analýza využití jader pomocí VTune
 ================================================================================
@@ -43,15 +159,32 @@ Login: xlogin00
 1) Jaké bylo průměrné využití jader pro všechny tři implementace s omezením na 
    18 vláken? Na kolik procent byly využity?
    
-   ref: Průměrné využití jader bylo rovno hodnotě 0.997 jader. CPU bylo využito na 2.8%.
-   loop: Průměrné využití jader se rovnalo hodnotě 17.374 jader. CPU bylo vuyžito na 48.3%.
-   tree: Průměrné využití jader bylo 16.345 jader. CPU bylo využito na 45.4%.
+   ref:  Průměrné využití jader bylo rovno hodnotě 0.997 jader. 
+         CPU bylo využito na 2.8%.
+   loop: Průměrné využití jader se rovnalo hodnotě 17.374 jader. 
+         CPU bylo vuyžito na 48.3%.
+   tree: Průměrné využití jader bylo 16.345 jader. 
+         CPU bylo využito na 45.4%.
+
 
 2) Jaké bylo průměrné využití jader pro všechny tři implementace s využitím 
    všech jader? Na kolik procent se podařilo využít obě CPU?
    
-   ref: Průměrné využití jader bylo 0.998 jader. CPU se podařilo využít na 2.8%.
-   loop: Průměrné využití jader bylo 26.425 jader. CPU se podařilo využít na 73.4%.
-   tree: Průměrné využití jader bylo 29.716 jader. CPU se podařilo využít na 82.5%.
+   ref:  Průměrné využití jader bylo 0.998 jader.
+         CPU se podařilo využít na 2.8%.
+   loop: Průměrné využití jader bylo 26.425 jader. 
+         CPU se podařilo využít na 73.4%.
+   tree: Průměrné využití jader bylo 29.716 jader. 
+         CPU se podařilo využít na 82.5%.
+
 
 3) Jaké jsou závěry z těchto měření?
+
+   Oproti referenčnímu řešení, ve kterém nebyla použita paralelizace, jsou obě 
+   paralelní řešení mnohem efektivnější. Referenční implementace využívala CPU 
+   pouze na necelá 3% a nevyužívala ani jedno celé jádro. S narůstajícím počtem 
+   vláken se zvyšuje využití CPU. Při omezení na 18 vláken je Loop řešení o něco 
+   efektivnější než řešení Octree, využívá lépe jak jádra, tak CPU je využito 
+   efektivněji. Při využití všech jader je naopak řešení Octree efektivnější, tzn. 
+   využívá větší část jader a CPU je tak efektivnější.
+   
