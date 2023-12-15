@@ -1,0 +1,57 @@
+Architektury Výpočetních Systémů (AVS 2023)
+Projekt č. 2 (PMC)
+Login: xlogin00
+
+Úloha 1: Paralelizace původního řešení
+===============================================================================
+
+1) Kterou ze smyček (viz zadání) je vhodnější paralelizovat a co způsobuje 
+   neefektivitu paralelizaci té druhé?
+
+2) Jaké plánování (rozdělení práce mezi vlákna) jste zvolili a proč? 
+   Jaký vliv má velikost "chunk" při dynamickém plánování (8, 16, 32, 64)?
+
+3) Jakým způsobem zajišťujete ukládání trojúhelníků z několika vláken současně?
+
+
+Úloha 2: Paralelní průchod stromem
+===============================================================================
+
+1) Stručně popište použití OpenMP tasků ve vašem řešení.
+
+2) Jaký vliv má na vaše řešení tzv. "cut-off"? Je vhodné vytvářet nový 
+   task pro každou krychli na nejnižší úrovni?
+
+3) Jakým způsobem zajišťujete ukládání trojúhelníků z několika vláken současně?
+
+Úloha 3: Grafy škálování všech řešení
+===============================================================================
+
+1) Stručně zhodnoťte efektivitu vytvořených řešení (na základě grafů ŠKÁLOVÁNÍ).
+
+2) V jakém případě (v závislosti na počtu bodů ve vstupním souboru a velikosti 
+   mřížky) bude vaše řešení 1. úlohy neefektivní? (pokud takový případ existuje)
+
+3) Je (nebo není) stromový algoritmus efektivnější z pohledu slabého škálování 
+   vzhledem ke vstupu?
+
+4) Jaký je rozdíl mezi silným a slabým škálováním?
+
+Úloha 4: Analýza využití jader pomocí VTune
+================================================================================
+
+1) Jaké bylo průměrné využití jader pro všechny tři implementace s omezením na 
+   18 vláken? Na kolik procent byly využity?
+   
+   ref: Průměrné využití jader bylo rovno hodnotě 0.997 jader. CPU bylo využito na 2.8%.
+   loop: Průměrné využití jader se rovnalo hodnotě 17.374 jader. CPU bylo vuyžito na 48.3%.
+   tree: Průměrné využití jader bylo 16.345 jader. CPU bylo využito na 45.4%.
+
+2) Jaké bylo průměrné využití jader pro všechny tři implementace s využitím 
+   všech jader? Na kolik procent se podařilo využít obě CPU?
+   
+   ref: Průměrné využití jader bylo 0.998 jader. CPU se podařilo využít na 2.8%.
+   loop: Průměrné využití jader bylo 26.425 jader. CPU se podařilo využít na 73.4%.
+   tree: Průměrné využití jader bylo 29.716 jader. CPU se podařilo využít na 82.5%.
+
+3) Jaké jsou závěry z těchto měření?

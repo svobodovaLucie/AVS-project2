@@ -39,7 +39,6 @@ unsigned LoopMeshBuilder::marchCubes(const ParametricScalarField &field)
         // 4. Evaluate "Marching Cube" at given position in the grid and
         //    store the number of triangles generated.
         unsigned buildCubeRes = buildCube(cubeOffset, field);
-        #pragma omp critical
         totalTriangles += buildCubeRes;
     }
 

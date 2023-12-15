@@ -55,7 +55,7 @@ unsigned TreeMeshBuilder::octTreeDecomposition(const ParametricScalarField &fiel
             float newOffsetZ = offset.z + float(i>=4)*(gridSize/2.0);
             Vec3_t<float> newOffset(newOffsetX, newOffsetY, newOffsetZ);
             unsigned trianglesCount = octTreeDecomposition(field, newOffset, gridSize/2);
-            #pragma omp critical
+            #pragma omp atomic update
             totalTriangles += trianglesCount;
         }
     }
